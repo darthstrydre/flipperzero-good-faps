@@ -1,4 +1,4 @@
-#include "../mass_storage_app_i.h"
+#include "../rwemu_app_i.h"
 #include "furi_hal_power.h"
 
 static bool mass_storage_file_select(MassStorageApp* mass_storage) {

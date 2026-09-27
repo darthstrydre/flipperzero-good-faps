@@ -1,6 +1,6 @@
-#include "../mass_storage_app_i.h"
-#include "../views/mass_storage_view.h"
-#include "../helpers/mass_storage_usb.h"
+#include "../rwemu_app_i.h"
+#include "../views/rwemu_view.h"
+#include "../helpers/rwemu_usb.h"
 #include <lib/toolbox/path.h>
 
 #define TAG "MassStorageSceneWork"

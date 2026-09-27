@@ -1,7 +1,7 @@
 #pragma once
 
 #include <storage/storage.h>
-#include "mass_storage_scsi.h"
+#include "rwemu_scsi.h"
 
 typedef struct MassStorageUsb MassStorageUsb;
 typedef void (*MassStorageUsbConnectionStatusCallback)(bool connected, void* context);

@@ -1,4 +1,4 @@
-#include "../mass_storage_app_i.h"
+#include "../rwemu_app_i.h"
 
 void mass_storage_scene_usb_locked_on_enter(void* context) {
     MassStorageApp* app = context;

@@ -1,4 +1,4 @@
-#include "mass_storage_app_i.h"
+#include "rwemu_app_i.h"
 #include <furi.h>
 #include <storage/storage.h>
 #include <lib/toolbox/path.h>

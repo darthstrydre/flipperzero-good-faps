@@ -1,4 +1,4 @@
-#include "mass_storage_scsi.h"
+#include "rwemu_scsi.h"
 
 #include <core/log.h>
 

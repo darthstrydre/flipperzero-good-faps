@@ -1,5 +1,5 @@
-#include "mass_storage_view.h"
-#include "../mass_storage_app_i.h"
+#include "rwemu_view.h"
+#include "../rwemu_app_i.h"
 #include <gui/elements.h>
 
 struct MassStorage {

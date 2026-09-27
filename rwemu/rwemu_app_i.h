@@ -1,8 +1,8 @@
 #pragma once
 
-#include "mass_storage_app.h"
-#include "scenes/mass_storage_scene.h"
-#include "helpers/mass_storage_usb.h"
+#include "rwemu_app.h"
+#include "scenes/rwemu_scene.h"
+#include "helpers/rwemu_usb.h"
 
 #include <furi_hal.h>
 #include <gui/gui.h>
@@ -15,8 +15,8 @@
 #include <gui/modules/loading.h>
 #include <gui/modules/widget.h>
 #include <storage/storage.h>
-#include "views/mass_storage_view.h"
-#include <mass_storage_icons.h>
+#include "views/rwemu_view.h"
+#include <rwemu_icons.h>
 
 #define MASS_STORAGE_APP_PATH_FOLDER STORAGE_APP_DATA_PATH_PREFIX
 #define MASS_STORAGE_APP_EXTENSION   ".img"
