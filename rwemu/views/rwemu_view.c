@@ -2,7 +2,7 @@
 #include "../rwemu_app_i.h"
 #include <gui/elements.h>
 
-struct RWEmuViewImpl {
+struct RWEmuView {
     View* view;
 };
 
@@ -73,22 +73,22 @@ static void rwemu_view_draw_callback(Canvas* canvas, void* _model) {
 }
 
 RWEmuView* rwemu_alloc() {
-    RWEmuViewImpl* impl = malloc(sizeof(RWEmuViewImpl));
+    RWEmuView* v = malloc(sizeof(RWEmuView));
 
-    impl->view = view_alloc();
-    view_allocate_model(impl->view, ViewModelTypeLocking, sizeof(RWEmuViewModel));
+    v->view = view_alloc();
+    view_allocate_model(v->view, ViewModelTypeLocking, sizeof(RWEmuViewModel));
     with_view_model(
-        impl->view,
+        v->view,
         RWEmuViewModel * model,
         {
             model->file_name = furi_string_alloc();
             model->status_string = furi_string_alloc();
         },
         false);
-    view_set_context(impl->view, impl);
-    view_set_draw_callback(impl->view, rwemu_view_draw_callback);
+    view_set_context(v->view, v);
+    view_set_draw_callback(v->view, rwemu_view_draw_callback);
 
-    return impl;
+    return v;
 }
 
 void rwemu_free(RWEmuView* view) {
