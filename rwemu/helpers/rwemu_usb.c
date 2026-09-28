@@ -409,9 +409,9 @@ static const struct RWEmuDescriptor usb_mass_cfg_descr = {
             .bInterfaceNumber = 0,
             .bAlternateSetting = 0,
             .bNumEndpoints = 2,
-            .bInterfaceClass = USB_CLASS_MASS_STORAGE,
-            .bInterfaceSubClass = 0x06, // scsi transparent
-            .bInterfaceProtocol = 0x50, // bulk only
+            .bInterfaceClass = 0x0B, // CD/DVD
+            .bInterfaceSubClass = 0x0A, // SFF-8020i / MMC
+            .bInterfaceProtocol = 0x00, // No protocol
             .iInterface = NO_DESCRIPTOR,
         },
     .ep_rx =

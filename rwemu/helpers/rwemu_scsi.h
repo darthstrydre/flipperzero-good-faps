@@ -43,10 +43,7 @@ typedef struct {
             uint32_t lba;
         } read_10; // SCSI_READ_10
 
-        struct {
-            uint16_t count;
-            uint32_t lba;
-        } write_10; // SCSI_WRITE_10
+        /* write_10 removed for CD-ROM emulation */
     };
 } SCSISession;
 

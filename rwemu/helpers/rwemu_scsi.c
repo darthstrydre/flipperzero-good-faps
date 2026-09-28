@@ -8,12 +8,23 @@
 #define SCSI_REQUEST_SENSE          (0x03)
 #define SCSI_INQUIRY                (0x12)
 #define SCSI_READ_FORMAT_CAPACITIES (0x23)
-#define SCSI_READ_CAPACITY_10       (0x25)
+/* #define SCSI_READ_CAPACITY_10    (0x25) */ /* Not valid for CD-ROM; stubbed to error */
 #define SCSI_MODE_SENSE_6           (0x1A)
 #define SCSI_READ_10                (0x28)
 #define SCSI_PREVENT_MEDIUM_REMOVAL (0x1E)
 #define SCSI_START_STOP_UNIT        (0x1B)
-#define SCSI_WRITE_10               (0x2A)
+/* #define SCSI_WRITE_10            (0x2A) */ /* Not used by CD-ROM devices */
+
+/* CD-ROM specific commands */
+#define SCSI_FORMAT_UNIT   (0x04)  /* Stub: returns ILLEGAL REQUEST */
+#define SCSI_READ_TOC      (0x43)  /* Table of Contents / PMA / ATIP */
+#define SCSI_GET_CONFIG    (0x46)  /* Get Configuration */
+#define SCSI_READ_DISC_INFO (0x51) /* Read Disc Information */
+#define SCSI_READ_TRACK_INFO (0x52) /* Read Track Information */
+#define SCSI_READ_DVD_STRUCT (0xAD) /* Read DVD Structure */
+#define SCSI_READ_12       (0xA8)  /* READ(12) command */
+#define SCSI_BLANK         (0xA1)  /* Blank CD stub: returns ILLEGAL REQUEST */
+#define SCSI_READ_CD       (0xBE)  /* Variable sector size read with sub-channel */
 
 bool scsi_cmd_start(SCSISession* scsi, uint8_t* cmd, uint8_t len) {
     if(!len) {
@@ -27,18 +38,55 @@ bool scsi_cmd_start(SCSISession* scsi, uint8_t* cmd, uint8_t len) {
     scsi->rx_done = false;
     scsi->tx_done = false;
     switch(cmd[0]) {
-    case SCSI_WRITE_10: {
-        if(len < 10) return false;
-        scsi->write_10.lba = cmd[2] << 24 | cmd[3] << 16 | cmd[4] << 8 | cmd[5];
-        scsi->write_10.count = cmd[7] << 8 | cmd[8];
-        FURI_LOG_D(TAG, "SCSI_WRITE_10 %08lX %04X", scsi->write_10.lba, scsi->write_10.count);
-        return true;
-    }; break;
     case SCSI_READ_10: {
         if(len < 10) return false;
         scsi->read_10.lba = cmd[2] << 24 | cmd[3] << 16 | cmd[4] << 8 | cmd[5];
         scsi->read_10.count = cmd[7] << 8 | cmd[8];
         FURI_LOG_D(TAG, "SCSI_READ_10 %08lX %04X", scsi->read_10.lba, scsi->read_10.count);
+        return true;
+    }; break;
+    case SCSI_READ_12: {
+        if(len < 12) return false;
+        scsi->read_10.lba = cmd[2] << 24 | cmd[3] << 16 | cmd[4] << 8 | cmd[5];
+        scsi->read_10.count = (cmd[6] << 16) | (cmd[7] << 8) | cmd[8];
+        FURI_LOG_D(TAG, "SCSI_READ_12 %08lX %04X", scsi->read_10.lba, scsi->read_10.count);
+        return true;
+    }; break;
+    case SCSI_READ_TOC: {
+        if(len < 8) return false;
+        scsi->tx_done = false;
+        FURI_LOG_D(TAG, "SCSI_READ_TOC format=%02X", cmd[1]);
+        return true;
+    }; break;
+    case SCSI_GET_CONFIG: {
+        if(len < 6) return false;
+        scsi->tx_done = false;
+        FURI_LOG_D(TAG, "SCSI_GET_CONFIG");
+        return true;
+    }; break;
+    case SCSI_READ_DISC_INFO: {
+        if(len < 4) return false;
+        scsi->tx_done = false;
+        FURI_LOG_D(TAG, "SCSI_READ_DISC_INFO");
+        return true;
+    }; break;
+    case SCSI_READ_TRACK_INFO: {
+        if(len < 6) return false;
+        scsi->tx_done = false;
+        FURI_LOG_D(TAG, "SCSI_READ_TRACK_INFO track=%02X", cmd[1]);
+        return true;
+    }; break;
+    case SCSI_READ_DVD_STRUCT: {
+        if(len < 6) return false;
+        scsi->tx_done = false;
+        FURI_LOG_D(TAG, "SCSI_READ_DVD_STRUCT type=%02X", cmd[2]);
+        return true;
+    }; break;
+    case SCSI_READ_CD: {
+        if(len < 10) return false;
+        scsi->read_10.lba = cmd[2] << 24 | cmd[3] << 16 | cmd[4] << 8 | cmd[5];
+        scsi->read_10.count = cmd[7] << 8 | cmd[8];
+        FURI_LOG_D(TAG, "SCSI_READ_CD %08lX %04X", scsi->read_10.lba, scsi->read_10.count);
         return true;
     }; break;
     }
@@ -49,18 +97,6 @@ bool scsi_cmd_rx_data(SCSISession* scsi, uint8_t* data, uint32_t len) {
     FURI_LOG_T(TAG, "RX %02X len %lu", scsi->cmd[0], len);
     if(scsi->rx_done) return false;
     switch(scsi->cmd[0]) {
-    case SCSI_WRITE_10: {
-        uint32_t block_size = SCSI_BLOCK_SIZE;
-        uint16_t blocks = len / block_size;
-        bool result =
-            scsi->fn.write(scsi->fn.ctx, scsi->write_10.lba, blocks, data, blocks * block_size);
-        scsi->write_10.lba += blocks;
-        scsi->write_10.count -= blocks;
-        if(!scsi->write_10.count) {
-            scsi->rx_done = true;
-        }
-        return result;
-    }; break;
     default: {
         FURI_LOG_W(TAG, "unexpected scsi rx data cmd=%02X", scsi->cmd[0]);
         scsi->sk = SCSI_SK_ILLEGAL_REQUEST;
@@ -113,7 +149,7 @@ bool scsi_cmd_tx_data(SCSISession* scsi, uint8_t* data, uint32_t* len, uint32_t 
         if(evpd == 0) {
             if(page_code != 0) return false;
 
-            data[0] = 0x00; // device type: direct access block device
+            data[0] = 0x05; // device type: CD/DVD
             data[1] = 0x80; // removable: true
             data[2] = 0x04; // version
             data[3] = 0x02; // response data format
@@ -168,6 +204,7 @@ bool scsi_cmd_tx_data(SCSISession* scsi, uint8_t* data, uint32_t* len, uint32_t 
         scsi->tx_done = true;
         return true;
     }; break;
+    /*
     case SCSI_READ_CAPACITY_10: {
         FURI_LOG_D(TAG, "SCSI_READ_CAPACITY_10");
         if(cap < 8) return false;
@@ -184,7 +221,8 @@ bool scsi_cmd_tx_data(SCSISession* scsi, uint8_t* data, uint32_t* len, uint32_t 
         *len = 8;
         scsi->tx_done = true;
         return true;
-    }; break;
+    }; break
+    */
     case SCSI_MODE_SENSE_6: {
         FURI_LOG_D(TAG, "SCSI_MODE_SENSE_6 %lu", cap);
         if(cap < 4) return false;
@@ -209,6 +247,115 @@ bool scsi_cmd_tx_data(SCSISession* scsi, uint8_t* data, uint32_t* len, uint32_t 
         }
         return result;
     }; break;
+    case SCSI_READ_12: {
+        uint32_t block_size = SCSI_BLOCK_SIZE;
+        bool result =
+            scsi->fn.read(scsi->fn.ctx, scsi->read_10.lba, scsi->read_10.count, data, len, cap);
+        *len -= *len % block_size;
+        uint16_t blocks = *len / block_size;
+        scsi->read_10.lba += blocks;
+        scsi->read_10.count -= blocks;
+        if(!scsi->read_10.count) {
+            scsi->tx_done = true;
+        }
+        return result;
+    }; break;
+    case SCSI_READ_CD: {
+        uint32_t block_size = SCSI_BLOCK_SIZE;
+        bool result =
+            scsi->fn.read(scsi->fn.ctx, scsi->read_10.lba, scsi->read_10.count, data, len, cap);
+        *len -= *len % block_size;
+        uint16_t blocks = *len / block_size;
+        scsi->read_10.lba += blocks;
+        scsi->read_10.count -= blocks;
+        if(!scsi->read_10.count) {
+            scsi->tx_done = true;
+        }
+        return result;
+    }; break;
+    case SCSI_READ_TOC: {
+        FURI_LOG_D(TAG, "SCSI_READ_TOC tx");
+        if(cap < 2) return false;
+        data[0] = 0; // reserved
+        data[1] = 10; // MC+DRS: multi class, removable media, session closed
+        *len = 2;
+        scsi->tx_done = true;
+        return true;
+    }; break;
+    case SCSI_GET_CONFIG: {
+        FURI_LOG_D(TAG, "SCSI_GET_CONFIG tx");
+        if(cap < 8) return false;
+        data[0] = 0; // reserved
+        data[1] = 3; // current configuration
+        data[2] = 0; // reserved
+        data[3] = 0x1C; // additional length: 28 bytes of descriptor data follows
+        // Properties field (4 bytes) - bit 0x04 set = read CD/DVD capability
+        data[4] = 0;
+        data[5] = 0;
+        data[6] = 0;
+        data[7] = 0x10; // bit 4: read CD/DVD capability
+        // Descriptor: descriptive text "CD-RW/DVD-RW Emu"
+        uint8_t desc_len = strlen("CD-RW/DVD-RW Emu");
+        if(cap < 8 + 2 + desc_len) return false;
+        data[8] = 0x14; // descriptor type: descriptive text
+        data[9] = (uint8_t)desc_len;
+        memcpy(data + 10, "CD-RW/DVD-RW Emu", desc_len);
+        *len = 10 + desc_len;
+        scsi->tx_done = true;
+        return true;
+    }; break;
+    case SCSI_READ_DISC_INFO: {
+        FURI_LOG_D(TAG, "SCSI_READ_DISC_INFO tx");
+        if(cap < 8) return false;
+        data[0] = 0; // reserved
+        data[1] = 0; // disc type: no disc / blank (per MMC spec)
+        data[2] = 0x01; // session info: last session opened, multi-session
+        data[3] = 0; // reserved
+        data[4] = 0; // current LBA high
+        data[5] = 0; // current LBA mid
+        data[6] = 0; // current LBA low
+        data[7] = 0; // current LBA sub
+        *len = 8;
+        scsi->tx_done = true;
+        return true;
+    }; break;
+    case SCSI_READ_TRACK_INFO: {
+        FURI_LOG_D(TAG, "SCSI_READ_TRACK_INFO tx");
+        if(cap < 10) return false;
+        data[0] = 0; // reserved
+        data[1] = 0x01; // number of tracks reported (1 track)
+        data[2] = 0; // track number requested (0=all, but we report single)
+        data[3] = 0; // reserved
+        // Track 0 descriptor: start LBA at 0, next writable area starts at 1
+        uint32_t track_start = 0;
+        data[4] = (track_start >> 24) & 0xFF;
+        data[5] = (track_start >> 16) & 0xFF;
+        data[6] = (track_start >> 8) & 0xFF;
+        data[7] = track_start & 0xFF;
+        // Data format: Mode 1/2 (0x04), address field present
+        data[8] = 0x04;
+        data[9] = 0x00; // reserved
+        *len = 10;
+        scsi->tx_done = true;
+        return true;
+    }; break;
+    case SCSI_READ_DVD_STRUCT: {
+        FURI_LOG_D(TAG, "SCSI_READ_DVD_STRUCT tx");
+        if(cap < 24) return false;
+        // DVD-ROM structure page (type 0x00)
+        data[0] = 0x00; // structure type: DVD-ROM
+        data[1] = 0x07; // length: 7 bytes of descriptor data follow (total 9 bytes per segment)
+        data[2] = 0x00; // reserved
+        data[3] = 0x00; // reserved
+        data[4] = 0x00; // reserved
+        data[5] = 0x00; // reserved
+        data[6] = 0x00; // reserved
+        data[7] = 0x00; // reserved
+        data[8] = 0x00; // layer 0: DVD-ROM
+        *len = 9;
+        scsi->tx_done = true;
+        return true;
+    }; break;
     default: {
         FURI_LOG_W(TAG, "unexpected scsi tx data cmd=%02X", scsi->cmd[0]);
         scsi->sk = SCSI_SK_ILLEGAL_REQUEST;
@@ -225,15 +372,18 @@ bool scsi_cmd_end(SCSISession* scsi) {
     scsi->cmd = NULL;
     scsi->cmd_len = 0;
     switch(cmd[0]) {
-    case SCSI_WRITE_10:
-        return scsi->rx_done;
-
     case SCSI_REQUEST_SENSE:
     case SCSI_INQUIRY:
     case SCSI_READ_FORMAT_CAPACITIES:
-    case SCSI_READ_CAPACITY_10:
     case SCSI_MODE_SENSE_6:
     case SCSI_READ_10:
+    case SCSI_READ_12:
+    case SCSI_READ_CD:
+    case SCSI_READ_TOC:
+    case SCSI_GET_CONFIG:
+    case SCSI_READ_DISC_INFO:
+    case SCSI_READ_TRACK_INFO:
+    case SCSI_READ_DVD_STRUCT:
         return scsi->tx_done;
 
     case SCSI_TEST_UNIT_READY: {
