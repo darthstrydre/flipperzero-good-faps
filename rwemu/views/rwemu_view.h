@@ -2,17 +2,17 @@
 
 #include <gui/view.h>
 
-typedef struct MassStorage MassStorage;
+typedef struct RWEmuView RWEmuView;
 
-MassStorage* mass_storage_alloc();
+RWEmuView* rwemu_alloc();
 
-void mass_storage_free(MassStorage* mass_storage);
+void rwemu_free(RWEmuView* view);
 
-View* mass_storage_get_view(MassStorage* mass_storage);
+View* rwemu_get_view(RWEmuView* view);
 
-void mass_storage_set_file_name(MassStorage* mass_storage, FuriString* name);
+void rwemu_set_file_name(RWEmuView* view, FuriString* name);
 
-void mass_storage_set_stats(MassStorage* mass_storage, uint32_t read, uint32_t written);
+void rwemu_set_stats(RWEmuView* view, uint32_t read, uint32_t written);
 
-void mass_storage_set_connection_error(MassStorage* mass_storage);
-void mass_storage_clear_connection_error(MassStorage* mass_storage);
+void rwemu_set_connection_error(RWEmuView* view);
+void rwemu_clear_connection_error(RWEmuView* view);

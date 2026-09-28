@@ -18,11 +18,11 @@
 #include "views/rwemu_view.h"
 #include <rwemu_icons.h>
 
-#define MASS_STORAGE_APP_PATH_FOLDER STORAGE_APP_DATA_PATH_PREFIX
-#define MASS_STORAGE_APP_EXTENSION   ".img"
-#define MASS_STORAGE_FILE_NAME_LEN   40
+#define RWEMU_APP_PATH_FOLDER STORAGE_APP_DATA_PATH_PREFIX
+#define RWEMU_APP_EXTENSION   ".img"
+#define RWEMU_FILE_NAME_LEN   40
 
-struct MassStorageApp {
+struct RWEmuApp {
     Gui* gui;
     Storage* fs_api;
     ViewDispatcher* view_dispatcher;
@@ -35,34 +35,34 @@ struct MassStorageApp {
 
     FuriString* file_path;
     File* file;
-    MassStorage* mass_storage_view;
+    RWEmuView* rw_view;
 
     FuriMutex* usb_mutex;
-    MassStorageUsb* usb;
+    RWEmuUsb* usb;
 
-    char new_file_name[MASS_STORAGE_FILE_NAME_LEN + 1];
+    char new_file_name[RWEMU_FILE_NAME_LEN + 1];
     uint32_t new_file_size;
 
     uint32_t bytes_read, bytes_written;
 };
 
 typedef enum {
-    MassStorageAppViewStart,
-    MassStorageAppViewTextInput,
-    MassStorageAppViewWork,
-    MassStorageAppViewLoading,
-    MassStorageAppViewWidget,
-} MassStorageAppView;
+    RWEmuAppViewStart,
+    RWEmuAppViewTextInput,
+    RWEmuAppViewWork,
+    RWEmuAppViewLoading,
+    RWEmuAppViewWidget,
+} RWEmuAppView;
 
-enum MassStorageCustomEvent {
+enum RWEmuCustomEvent {
     // Reserve first 100 events for button types and indexes, starting from 0
-    MassStorageCustomEventReserved = 100,
+    RWEmuCustomEventReserved = 100,
 
-    MassStorageCustomEventEject,
-    MassStorageCustomEventConnectionError,
-    MassStorageCustomEventFileSelect,
-    MassStorageCustomEventNewImage,
-    MassStorageCustomEventNameInput,
+    RWEmuCustomEventEject,
+    RWEmuCustomEventConnectionError,
+    RWEmuCustomEventFileSelect,
+    RWEmuCustomEventNewImage,
+    RWEmuCustomEventNameInput,
 };
 
-void mass_storage_app_show_loading_popup(MassStorageApp* app, bool show);
+void rwemu_app_show_loading_popup(RWEmuApp* app, bool show);

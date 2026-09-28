@@ -3,14 +3,14 @@
 #include <gui/scene_manager.h>
 
 // Generate scene id and total number
-#define ADD_SCENE(prefix, name, id) MassStorageScene##id,
+#define ADD_SCENE(prefix, name, id) RWEmuScene##id,
 typedef enum {
 #include "rwemu_scene_config.h"
-    MassStorageSceneNum,
-} MassStorageScene;
+    RWEmuSceneNum,
+} RWEmuScene;
 #undef ADD_SCENE
 
-extern const SceneManagerHandlers mass_storage_scene_handlers;
+extern const SceneManagerHandlers rwemu_scene_handlers;
 
 // Generate scene on_enter handlers declaration
 #define ADD_SCENE(prefix, name, id) void prefix##_scene_##name##_on_enter(void*);

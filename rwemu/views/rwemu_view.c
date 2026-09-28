@@ -2,7 +2,7 @@
 #include "../rwemu_app_i.h"
 #include <gui/elements.h>
 
-struct MassStorage {
+struct RWEmuViewImpl {
     View* view;
 };
 
@@ -12,7 +12,7 @@ typedef struct {
     uint32_t bytes_read, bytes_written;
     uint32_t update_time;
     bool connection_error;
-} MassStorageModel;
+} RWEmuViewModel;
 
 static void append_suffixed_byte_count(FuriString* string, uint32_t count) {
     if(count < 1024) {
@@ -26,8 +26,8 @@ static void append_suffixed_byte_count(FuriString* string, uint32_t count) {
     }
 }
 
-static void mass_storage_draw_callback(Canvas* canvas, void* _model) {
-    MassStorageModel* model = _model;
+static void rwemu_view_draw_callback(Canvas* canvas, void* _model) {
+    RWEmuViewModel* model = _model;
 
     if(model->connection_error) {
         canvas_set_font(canvas, FontPrimary);
@@ -46,7 +46,7 @@ static void mass_storage_draw_callback(Canvas* canvas, void* _model) {
 
     canvas_set_font(canvas, FontPrimary);
     canvas_draw_str_aligned(
-        canvas, canvas_width(canvas) / 2, 0, AlignCenter, AlignTop, "USB Mass Storage");
+        canvas, canvas_width(canvas) / 2, 0, AlignCenter, AlignTop, "RW Emu");
 
     canvas_set_font(canvas, FontSecondary);
     elements_string_fit_width(canvas, model->file_name, 89 - 2);
@@ -72,67 +72,67 @@ static void mass_storage_draw_callback(Canvas* canvas, void* _model) {
     canvas_draw_str(canvas, 12, 44, furi_string_get_cstr(model->status_string));
 }
 
-MassStorage* mass_storage_alloc() {
-    MassStorage* mass_storage = malloc(sizeof(MassStorage));
+RWEmuView* rwemu_alloc() {
+    RWEmuViewImpl* impl = malloc(sizeof(RWEmuViewImpl));
 
-    mass_storage->view = view_alloc();
-    view_allocate_model(mass_storage->view, ViewModelTypeLocking, sizeof(MassStorageModel));
+    impl->view = view_alloc();
+    view_allocate_model(impl->view, ViewModelTypeLocking, sizeof(RWEmuViewModel));
     with_view_model(
-        mass_storage->view,
-        MassStorageModel * model,
+        impl->view,
+        RWEmuViewModel * model,
         {
             model->file_name = furi_string_alloc();
             model->status_string = furi_string_alloc();
         },
         false);
-    view_set_context(mass_storage->view, mass_storage);
-    view_set_draw_callback(mass_storage->view, mass_storage_draw_callback);
+    view_set_context(impl->view, impl);
+    view_set_draw_callback(impl->view, rwemu_view_draw_callback);
 
-    return mass_storage;
+    return impl;
 }
 
-void mass_storage_free(MassStorage* mass_storage) {
-    furi_assert(mass_storage);
+void rwemu_free(RWEmuView* view) {
+    furi_assert(view);
     with_view_model(
-        mass_storage->view,
-        MassStorageModel * model,
+        view->view,
+        RWEmuViewModel * model,
         {
             furi_string_free(model->file_name);
             furi_string_free(model->status_string);
         },
         false);
-    view_free(mass_storage->view);
-    free(mass_storage);
+    view_free(view->view);
+    free(view);
 }
 
-View* mass_storage_get_view(MassStorage* mass_storage) {
-    furi_assert(mass_storage);
-    return mass_storage->view;
+View* rwemu_get_view(RWEmuView* view) {
+    furi_assert(view);
+    return view->view;
 }
 
-void mass_storage_set_file_name(MassStorage* mass_storage, FuriString* name) {
+void rwemu_set_file_name(RWEmuView* view, FuriString* name) {
     furi_assert(name);
     with_view_model(
-        mass_storage->view,
-        MassStorageModel * model,
+        view->view,
+        RWEmuViewModel * model,
         { furi_string_set(model->file_name, name); },
         true);
 }
 
-void mass_storage_set_connection_error(MassStorage* mass_storage) {
+void rwemu_set_connection_error(RWEmuView* view) {
     with_view_model(
-        mass_storage->view, MassStorageModel * model, { model->connection_error = true; }, true);
+        view->view, RWEmuViewModel * model, { model->connection_error = true; }, true);
 }
 
-void mass_storage_clear_connection_error(MassStorage* mass_storage) {
+void rwemu_clear_connection_error(RWEmuView* view) {
     with_view_model(
-        mass_storage->view, MassStorageModel * model, { model->connection_error = false; }, false);
+        view->view, RWEmuViewModel * model, { model->connection_error = false; }, false);
 }
 
-void mass_storage_set_stats(MassStorage* mass_storage, uint32_t read, uint32_t written) {
+void rwemu_set_stats(RWEmuView* view, uint32_t read, uint32_t written) {
     with_view_model(
-        mass_storage->view,
-        MassStorageModel * model,
+        view->view,
+        RWEmuViewModel * model,
         {
             uint32_t now = furi_get_tick();
             model->read_speed = (read - model->bytes_read) * 1000 / (now - model->update_time);

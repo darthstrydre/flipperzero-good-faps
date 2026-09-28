@@ -3,7 +3,7 @@
 #include "../helpers/rwemu_usb.h"
 #include <lib/toolbox/path.h>
 
-#define TAG "MassStorageSceneWork"
+#define TAG "RWEmuSceneWork"
 
 static bool file_read(
     void* ctx,
@@ -12,7 +12,7 @@ static bool file_read(
     uint8_t* out,
     uint32_t* out_len,
     uint32_t out_cap) {
-    MassStorageApp* app = ctx;
+    RWEmuApp* app = ctx;
     FURI_LOG_T(TAG, "file_read lba=%08lX count=%04X out_cap=%08lX", lba, count, out_cap);
     if(!storage_file_seek(app->file, lba * SCSI_BLOCK_SIZE, true)) {
         FURI_LOG_W(TAG, "seek failed");
@@ -26,7 +26,7 @@ static bool file_read(
 }
 
 static bool file_write(void* ctx, uint32_t lba, uint16_t count, uint8_t* buf, uint32_t len) {
-    MassStorageApp* app = ctx;
+    RWEmuApp* app = ctx;
     FURI_LOG_T(TAG, "file_write lba=%08lX count=%04X len=%08lX", lba, count, len);
     if(len != count * SCSI_BLOCK_SIZE) {
         FURI_LOG_W(TAG, "bad write params count=%u len=%lu", count, len);
@@ -41,69 +41,69 @@ static bool file_write(void* ctx, uint32_t lba, uint16_t count, uint8_t* buf, ui
 }
 
 static uint32_t file_num_blocks(void* ctx) {
-    MassStorageApp* app = ctx;
+    RWEmuApp* app = ctx;
     return storage_file_size(app->file) / SCSI_BLOCK_SIZE;
 }
 
 static void file_eject(void* ctx) {
-    MassStorageApp* app = ctx;
+    RWEmuApp* app = ctx;
     FURI_LOG_D(TAG, "EJECT");
-    view_dispatcher_send_custom_event(app->view_dispatcher, MassStorageCustomEventEject);
+    view_dispatcher_send_custom_event(app->view_dispatcher, RWEmuCustomEventEject);
 }
 
 static void usb_connection_status_cb(bool connected, void* ctx) {
     UNUSED(connected);
-    MassStorageApp* app = ctx;
-    view_dispatcher_send_custom_event(app->view_dispatcher, MassStorageCustomEventConnectionError);
+    RWEmuApp* app = ctx;
+    view_dispatcher_send_custom_event(app->view_dispatcher, RWEmuCustomEventConnectionError);
 }
 
-bool mass_storage_scene_work_on_event(void* context, SceneManagerEvent event) {
-    MassStorageApp* app = context;
+bool rwemu_scene_work_on_event(void* context, SceneManagerEvent event) {
+    RWEmuApp* app = context;
     bool consumed = false;
     if(event.type == SceneManagerEventTypeCustom) {
-        if(event.event == MassStorageCustomEventEject) {
+        if(event.event == RWEmuCustomEventEject) {
             consumed = scene_manager_search_and_switch_to_previous_scene(
-                app->scene_manager, MassStorageSceneFileSelect);
+                app->scene_manager, RWEmuSceneFileSelect);
             if(!consumed) {
                 consumed = scene_manager_search_and_switch_to_previous_scene(
-                    app->scene_manager, MassStorageSceneStart);
+                    app->scene_manager, RWEmuSceneStart);
             }
-        } else if(event.event == MassStorageCustomEventConnectionError) {
-            mass_storage_set_connection_error(app->mass_storage_view);
+        } else if(event.event == RWEmuCustomEventConnectionError) {
+            rwemu_set_connection_error(app->rw_view);
             consumed = true;
         }
     } else if(event.type == SceneManagerEventTypeTick) {
-        mass_storage_set_stats(app->mass_storage_view, app->bytes_read, app->bytes_written);
+        rwemu_set_stats(app->rw_view, app->bytes_read, app->bytes_written);
     } else if(event.type == SceneManagerEventTypeBack) {
         consumed = scene_manager_search_and_switch_to_previous_scene(
-            app->scene_manager, MassStorageSceneFileSelect);
-        if(!consumed) {
-            consumed = scene_manager_search_and_switch_to_previous_scene(
-                app->scene_manager, MassStorageSceneStart);
+            app->scene_manager, RWEmuSceneFileSelect);
+            if(!consumed) {
+                consumed = scene_manager_search_and_switch_to_previous_scene(
+                    app->scene_manager, RWEmuSceneStart);
         }
     }
     return consumed;
 }
 
-void mass_storage_scene_work_on_enter(void* context) {
-    MassStorageApp* app = context;
+void rwemu_scene_work_on_enter(void* context) {
+    RWEmuApp* app = context;
     app->bytes_read = app->bytes_written = 0;
-    mass_storage_clear_connection_error(app->mass_storage_view);
+    rwemu_clear_connection_error(app->rw_view);
 
     if(!storage_file_exists(app->fs_api, furi_string_get_cstr(app->file_path))) {
         scene_manager_search_and_switch_to_previous_scene(
-            app->scene_manager, MassStorageSceneStart);
+            app->scene_manager, RWEmuSceneStart);
         return;
     }
 
-    mass_storage_app_show_loading_popup(app, true);
+    rwemu_app_show_loading_popup(app, true);
 
     app->usb_mutex = furi_mutex_alloc(FuriMutexTypeNormal);
 
     FuriString* file_name = furi_string_alloc();
     path_extract_filename(app->file_path, file_name, true);
 
-    mass_storage_set_file_name(app->mass_storage_view, file_name);
+    rwemu_set_file_name(app->rw_view, file_name);
     app->file = storage_file_alloc(app->fs_api);
     furi_assert(storage_file_open(
         app->file,
@@ -119,33 +119,33 @@ void mass_storage_scene_work_on_enter(void* context) {
         .eject = file_eject,
     };
 
-    app->usb = mass_storage_usb_start(furi_string_get_cstr(file_name), fn);
+    app->usb = rwemu_usb_start(furi_string_get_cstr(file_name), fn);
     if(app->usb) {
-        mass_storage_usb_set_connection_status_callback(app->usb, usb_connection_status_cb, app);
+        rwemu_usb_set_connection_status_callback(app->usb, usb_connection_status_cb, app);
     }
 
     furi_string_free(file_name);
 
-    mass_storage_app_show_loading_popup(app, false);
-    view_dispatcher_switch_to_view(app->view_dispatcher, MassStorageAppViewWork);
+    rwemu_app_show_loading_popup(app, false);
+    view_dispatcher_switch_to_view(app->view_dispatcher, RWEmuAppViewWork);
 }
 
-void mass_storage_scene_work_on_exit(void* context) {
-    MassStorageApp* app = context;
-    mass_storage_app_show_loading_popup(app, true);
+void rwemu_scene_work_on_exit(void* context) {
+    RWEmuApp* app = context;
+    rwemu_app_show_loading_popup(app, true);
 
     if(app->usb_mutex) {
         furi_mutex_free(app->usb_mutex);
         app->usb_mutex = NULL;
     }
     if(app->usb) {
-        mass_storage_usb_set_connection_status_callback(app->usb, NULL, NULL);
-        mass_storage_usb_stop(app->usb);
+        rwemu_usb_set_connection_status_callback(app->usb, NULL, NULL);
+        rwemu_usb_stop(app->usb);
         app->usb = NULL;
     }
     if(app->file) {
         storage_file_free(app->file);
         app->file = NULL;
     }
-    mass_storage_app_show_loading_popup(app, false);
+    rwemu_app_show_loading_popup(app, false);
 }

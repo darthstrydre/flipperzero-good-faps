@@ -3,12 +3,12 @@
 #include <storage/storage.h>
 #include "rwemu_scsi.h"
 
-typedef struct MassStorageUsb MassStorageUsb;
-typedef void (*MassStorageUsbConnectionStatusCallback)(bool connected, void* context);
+typedef struct RWEmuUsb RWEmuUsb;
+typedef void (*RWEmuUsbConnectionStatusCallback)(bool connected, void* context);
 
-MassStorageUsb* mass_storage_usb_start(const char* filename, SCSIDeviceFunc fn);
-void mass_storage_usb_stop(MassStorageUsb* mass);
-void mass_storage_usb_set_connection_status_callback(
-    MassStorageUsb* mass,
-    MassStorageUsbConnectionStatusCallback cb,
+RWEmuUsb* rwemu_usb_start(const char* filename, SCSIDeviceFunc fn);
+void rwemu_usb_stop(RWEmuUsb* mass);
+void rwemu_usb_set_connection_status_callback(
+    RWEmuUsb* mass,
+    RWEmuUsbConnectionStatusCallback cb,
     void* context);

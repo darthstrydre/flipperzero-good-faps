@@ -1,7 +1,7 @@
 #include "../rwemu_app_i.h"
 
-void mass_storage_scene_usb_locked_on_enter(void* context) {
-    MassStorageApp* app = context;
+void rwemu_scene_usb_locked_on_enter(void* context) {
+    RWEmuApp* app = context;
 
     widget_add_icon_element(app->widget, 78, 0, &I_ActiveConnection_50x64);
     widget_add_string_multiline_element(
@@ -15,26 +15,26 @@ void mass_storage_scene_usb_locked_on_enter(void* context) {
         FontSecondary,
         "Disconnect from\nPC or phone to\nuse this function.");
 
-    view_dispatcher_switch_to_view(app->view_dispatcher, MassStorageAppViewWidget);
+    view_dispatcher_switch_to_view(app->view_dispatcher, RWEmuAppViewWidget);
 }
 
-bool mass_storage_scene_usb_locked_on_event(void* context, SceneManagerEvent event) {
-    MassStorageApp* app = context;
+bool rwemu_scene_usb_locked_on_event(void* context, SceneManagerEvent event) {
+    RWEmuApp* app = context;
     bool consumed = false;
 
     if(event.type == SceneManagerEventTypeBack) {
         consumed = scene_manager_search_and_switch_to_previous_scene(
-            app->scene_manager, MassStorageSceneFileSelect);
+            app->scene_manager, RWEmuSceneFileSelect);
         if(!consumed) {
             consumed = scene_manager_search_and_switch_to_previous_scene(
-                app->scene_manager, MassStorageSceneStart);
+                app->scene_manager, RWEmuSceneStart);
         }
     }
 
     return consumed;
 }
 
-void mass_storage_scene_usb_locked_on_exit(void* context) {
-    MassStorageApp* app = context;
+void rwemu_scene_usb_locked_on_exit(void* context) {
+    RWEmuApp* app = context;
     widget_reset(app->widget);
 }

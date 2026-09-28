@@ -2,7 +2,7 @@
 
 #include <core/log.h>
 
-#define TAG "MassStorageSCSI"
+#define TAG "RWEmuSCSI"
 
 #define SCSI_TEST_UNIT_READY        (0x00)
 #define SCSI_REQUEST_SENSE          (0x03)
@@ -122,7 +122,7 @@ bool scsi_cmd_tx_data(SCSISession* scsi, uint8_t* data, uint32_t* len, uint32_t 
             data[6] = 0; // flags
             data[7] = 0; // flags
             memcpy(data + 8, "Flipper ", 8); // vendor id
-            memcpy(data + 16, "Mass Storage    ", 16); // product id
+            memcpy(data + 16, "RW Emu          ", 16); // product id
             memcpy(data + 32, "0001", 4); // product revision level
             *len = 36;
             scsi->tx_done = true;

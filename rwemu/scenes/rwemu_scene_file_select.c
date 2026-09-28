@@ -1,42 +1,42 @@
 #include "../rwemu_app_i.h"
 #include "furi_hal_power.h"
 
-static bool mass_storage_file_select(MassStorageApp* mass_storage) {
-    furi_assert(mass_storage);
+static bool rwemu_file_select(RWEmuApp* app) {
+    furi_assert(app);
 
     DialogsFileBrowserOptions browser_options;
     dialog_file_browser_set_basic_options(
-        &browser_options, MASS_STORAGE_APP_EXTENSION, &I_mass_storage_10px);
-    browser_options.base_path = MASS_STORAGE_APP_PATH_FOLDER;
+        &browser_options, RWEMU_APP_EXTENSION, &I_rwemu_10px);
+    browser_options.base_path = RWEMU_APP_PATH_FOLDER;
     browser_options.hide_ext = false;
 
     // Input events and views are managed by file_select
     bool res = dialog_file_browser_show(
-        mass_storage->dialogs, mass_storage->file_path, mass_storage->file_path, &browser_options);
+        app->dialogs, app->file_path, app->file_path, &browser_options);
     return res;
 }
 
-void mass_storage_scene_file_select_on_enter(void* context) {
-    MassStorageApp* mass_storage = context;
+void rwemu_scene_file_select_on_enter(void* context) {
+    RWEmuApp* app = context;
 
-    if(mass_storage_file_select(mass_storage)) {
+    if(rwemu_file_select(app)) {
         if(!furi_hal_usb_is_locked()) {
-            scene_manager_next_scene(mass_storage->scene_manager, MassStorageSceneWork);
+            scene_manager_next_scene(app->scene_manager, RWEmuSceneWork);
         } else {
-            scene_manager_next_scene(mass_storage->scene_manager, MassStorageSceneUsbLocked);
+            scene_manager_next_scene(app->scene_manager, RWEmuSceneUsbLocked);
         }
     } else {
-        scene_manager_previous_scene(mass_storage->scene_manager);
+        scene_manager_previous_scene(app->scene_manager);
     }
 }
 
-bool mass_storage_scene_file_select_on_event(void* context, SceneManagerEvent event) {
+bool rwemu_scene_file_select_on_event(void* context, SceneManagerEvent event) {
     UNUSED(context);
     UNUSED(event);
-    // MassStorageApp* mass_storage = context;
+    // RWEmuApp* app = context;
     return false;
 }
 
-void mass_storage_scene_file_select_on_exit(void* context) {
+void rwemu_scene_file_select_on_exit(void* context) {
     UNUSED(context);
 }

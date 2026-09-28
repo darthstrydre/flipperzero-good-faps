@@ -4,7 +4,7 @@
 extern "C" {
 #endif
 
-typedef struct MassStorageApp MassStorageApp;
+typedef struct RWEmuApp RWEmuApp;
 
 #ifdef __cplusplus
 }

@@ -1,7 +1,7 @@
 #include "rwemu_usb.h"
 #include <furi_hal.h>
 
-#define TAG "MassStorageUsb"
+#define TAG "RWEmuUsb"
 
 #define USB_MSC_RX_EP (0x01)
 #define USB_MSC_TX_EP (0x82)
@@ -33,7 +33,7 @@ typedef enum {
     EventRxTx = 1 << 2,
 
     EventAll = EventExit | EventReset | EventRxTx,
-} MassStorageEvent;
+} RWEmuEvent;
 
 typedef struct {
     uint32_t sig;
@@ -52,7 +52,7 @@ typedef struct {
     uint8_t status;
 } __attribute__((packed)) CSW;
 
-struct MassStorageUsb {
+struct RWEmuUsb {
     FuriHalUsbInterface usb;
     FuriHalUsbInterface* usb_prev;
 
@@ -61,12 +61,12 @@ struct MassStorageUsb {
     SCSIDeviceFunc fn;
 
     bool connected;
-    MassStorageUsbConnectionStatusCallback status_cb;
+    RWEmuUsbConnectionStatusCallback status_cb;
     void* status_cb_context;
 };
 
 static int32_t mass_thread_worker(void* context) {
-    MassStorageUsb* mass = context;
+    RWEmuUsb* mass = context;
     usbd_device* dev = mass->dev;
     SCSISession scsi = {
         .fn = mass->fn,
@@ -266,12 +266,12 @@ static int32_t mass_thread_worker(void* context) {
 
 // needed in usb_deinit, usb_suspend, usb_rxtx_ep_callback, usb_control,
 // where if_ctx isn't passed
-static MassStorageUsb* mass_cur = NULL;
+static RWEmuUsb* rwusb_cur = NULL;
 
 static void usb_init(usbd_device* dev, FuriHalUsbInterface* intf, void* ctx) {
     UNUSED(intf);
-    MassStorageUsb* mass = ctx;
-    mass_cur = mass;
+    RWEmuUsb* mass = ctx;
+    rwusb_cur = mass;
     mass->dev = dev;
     mass->connected = false;
 
@@ -286,12 +286,12 @@ static void usb_deinit(usbd_device* dev) {
     usbd_reg_config(dev, NULL);
     usbd_reg_control(dev, NULL);
 
-    MassStorageUsb* mass = mass_cur;
+    RWEmuUsb* mass = rwusb_cur;
     if(!mass || mass->dev != dev) {
-        FURI_LOG_E(TAG, "deinit mass_cur leak");
+        FURI_LOG_E(TAG, "deinit rwusb_cur leak");
         return;
     }
-    mass_cur = NULL;
+    rwusb_cur = NULL;
 
     if(mass->thread) {
         furi_thread_flags_set(furi_thread_get_id(mass->thread), EventExit);
@@ -308,7 +308,7 @@ static void usb_wakeup(usbd_device* dev) {
 }
 
 static void usb_suspend(usbd_device* dev) {
-    MassStorageUsb* mass = mass_cur;
+    RWEmuUsb* mass = rwusb_cur;
     if(!mass || mass->dev != dev) return;
     furi_thread_flags_set(furi_thread_get_id(mass->thread), EventReset);
 }
@@ -316,7 +316,7 @@ static void usb_suspend(usbd_device* dev) {
 static void usb_rxtx_ep_callback(usbd_device* dev, uint8_t event, uint8_t ep) {
     UNUSED(ep);
     UNUSED(event);
-    MassStorageUsb* mass = mass_cur;
+    RWEmuUsb* mass = rwusb_cur;
     if(!mass || mass->dev != dev) return;
     furi_thread_flags_set(furi_thread_get_id(mass->thread), EventRxTx);
 }
@@ -355,7 +355,7 @@ static usbd_respond usb_control(usbd_device* dev, usbd_ctlreq* req, usbd_rqc_cal
         return usbd_ack;
     }; break;
     case USB_MSC_BOT_RESET: {
-        MassStorageUsb* mass = mass_cur;
+        RWEmuUsb* mass = rwusb_cur;
         if(!mass || mass->dev != dev) return usbd_fail;
         furi_thread_flags_set(furi_thread_get_id(mass->thread), EventReset);
         return usbd_ack;
@@ -366,7 +366,7 @@ static usbd_respond usb_control(usbd_device* dev, usbd_ctlreq* req, usbd_rqc_cal
 
 static const struct usb_string_descriptor dev_manuf_desc = USB_STRING_DESC("Flipper Devices Inc.");
 
-struct MassStorageDescriptor {
+struct RWEmuDescriptor {
     struct usb_config_descriptor config;
     struct usb_interface_descriptor intf;
     struct usb_endpoint_descriptor ep_rx;
@@ -390,12 +390,12 @@ static const struct usb_device_descriptor usb_mass_dev_descr = {
     .bNumConfigurations = 1,
 };
 
-static const struct MassStorageDescriptor usb_mass_cfg_descr = {
+static const struct RWEmuDescriptor usb_mass_cfg_descr = {
     .config =
         {
             .bLength = sizeof(struct usb_config_descriptor),
             .bDescriptorType = USB_DTYPE_CONFIGURATION,
-            .wTotalLength = sizeof(struct MassStorageDescriptor),
+            .wTotalLength = sizeof(struct RWEmuDescriptor),
             .bNumInterfaces = 1,
             .bConfigurationValue = 1,
             .iConfiguration = NO_DESCRIPTOR,
@@ -434,8 +434,8 @@ static const struct MassStorageDescriptor usb_mass_cfg_descr = {
         },
 };
 
-MassStorageUsb* mass_storage_usb_start(const char* filename, SCSIDeviceFunc fn) {
-    MassStorageUsb* mass = malloc(sizeof(MassStorageUsb));
+RWEmuUsb* rwemu_usb_start(const char* filename, SCSIDeviceFunc fn) {
+    RWEmuUsb* mass = malloc(sizeof(RWEmuUsb));
     mass->usb_prev = furi_hal_usb_get_config();
     mass->usb.init = usb_init;
     mass->usb.deinit = usb_deinit;
@@ -466,9 +466,9 @@ MassStorageUsb* mass_storage_usb_start(const char* filename, SCSIDeviceFunc fn) 
     mass->usb.str_serial_descr = str_serial_descr;
 
     mass->fn = fn;
-    mass->thread = furi_thread_alloc_ex("MassStorageUsb", 1024, mass_thread_worker, mass);
+    mass->thread = furi_thread_alloc_ex("RWEmuUsb", 1024, mass_thread_worker, mass);
     if(!furi_hal_usb_set_config(&mass->usb, mass)) {
-        FURI_LOG_E(TAG, "USB locked, cannot start Mass Storage");
+        FURI_LOG_E(TAG, "USB locked, cannot start RW Emu");
         furi_thread_free(mass->thread);
         free(mass->usb.str_prod_descr);
         free(mass->usb.str_serial_descr);
@@ -478,7 +478,7 @@ MassStorageUsb* mass_storage_usb_start(const char* filename, SCSIDeviceFunc fn) 
     return mass;
 }
 
-void mass_storage_usb_stop(MassStorageUsb* mass) {
+void rwemu_usb_stop(RWEmuUsb* mass) {
     furi_hal_usb_set_config(mass->usb_prev, NULL);
     furi_thread_free(mass->thread);
     free(mass->usb.str_prod_descr);
@@ -486,9 +486,9 @@ void mass_storage_usb_stop(MassStorageUsb* mass) {
     free(mass);
 }
 
-void mass_storage_usb_set_connection_status_callback(
-    MassStorageUsb* mass,
-    MassStorageUsbConnectionStatusCallback cb,
+void rwemu_usb_set_connection_status_callback(
+    RWEmuUsb* mass,
+    RWEmuUsbConnectionStatusCallback cb,
     void* context) {
     mass->status_cb = cb;
     mass->status_cb_context = context;
