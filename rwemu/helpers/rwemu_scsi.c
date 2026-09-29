@@ -94,6 +94,7 @@ bool scsi_cmd_start(SCSISession* scsi, uint8_t* cmd, uint8_t len) {
 }
 
 bool scsi_cmd_rx_data(SCSISession* scsi, uint8_t* data, uint32_t len) {
+    (void)data;
     FURI_LOG_T(TAG, "RX %02X len %lu", scsi->cmd[0], len);
     if(scsi->rx_done) return false;
     switch(scsi->cmd[0]) {
@@ -295,7 +296,7 @@ bool scsi_cmd_tx_data(SCSISession* scsi, uint8_t* data, uint32_t* len, uint32_t 
         data[6] = 0;
         data[7] = 0x10; // bit 4: read CD/DVD capability
         // Descriptor: descriptive text "CD-RW/DVD-RW Emu"
-        uint8_t desc_len = strlen("CD-RW/DVD-RW Emu");
+        uint32_t desc_len = strlen("CD-RW/DVD-RW Emu");
         if(cap < 8 + 2 + desc_len) return false;
         data[8] = 0x14; // descriptor type: descriptive text
         data[9] = (uint8_t)desc_len;
